@@ -1,9 +1,17 @@
+import os
+import logging
+
 from binance.client import Client
+
+logging.basicConfig(
+    filename='Binance_api.log',
+    level=logging.INFO,
+    datefmt='%d-%b-%y %H:%M:%S'
+)
 
 
 SYMBOL = 'BTCUSDT'
 INTERVAL = Client.KLINE_INTERVAL_15MINUTE
-
 RAW_DATASET_START_DATETIME = "1 Jan, 2019"
 RAW_DATASET_END_DATETIME = "30 Jul, 2021"
 
@@ -19,3 +27,20 @@ RAW_DATASET_FULL_PATH = '{DIRECTORY}/{FILENAME}.csv'.format(
     DIRECTORY=RAW_DATASET_DIRECTORY,
     FILENAME=NEW_FILE_NAME_WITHOUT_EXTENSION
 )
+if not os.path.exists(RAW_DATASET_DIRECTORY):
+    os.makedirs(RAW_DATASET_DIRECTORY)
+
+
+SIGNAL_MAX_MINUTE_LATER = 10
+SIGNAL_MIN_PERCENT_PROFIT = 0.012
+
+SIGNAL_DATASET_DIRECTORY = 'datasets_signal'
+SIGNAL_DATASET_FULL_PATH = '{DIRECTORY}/{FILENAME}.csv'.format(
+    DIRECTORY=SIGNAL_DATASET_DIRECTORY,
+    FILENAME=NEW_FILE_NAME_WITHOUT_EXTENSION+'_{steps}_steps_{percent}_percent_profit'.format(
+        steps=SIGNAL_MAX_MINUTE_LATER,
+        percent=SIGNAL_MIN_PERCENT_PROFIT
+    )
+)
+if not os.path.exists(SIGNAL_DATASET_DIRECTORY):
+    os.makedirs(SIGNAL_DATASET_DIRECTORY)
