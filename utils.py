@@ -2,11 +2,6 @@ import logging
 
 import pandas as pd
 
-from ta.utils import dropna
-from ta.volatility import BollingerBands
-from ta.momentum import RSIIndicator
-from ta.trend import EMAIndicator, PSARIndicator, MACD
-
 import config as current_config
 
 pd.set_option('display.max_columns', None)
