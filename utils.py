@@ -67,16 +67,21 @@ def signal_buy_(
     logging.info('Done: percent_max_future_rows')
 
     if lower_bound:
+        col_names_min = ['{}_{}'.format(col_names['low'], shift) for shift in range(1, max_minutes_later + 1)]
+        for shift in range(1, max_minutes_later + 1):
+            df['{}_{}'.format(col_names['low'], shift)] = df[col_names['low']].shift(-shift)
+        logging.info('Done: shift lower_bound')
+
         df['percent_min_future_rows'] = df.apply(
-            lambda row: round((row[col_names_max].min() - row[col_close]) / row[col_close], 4), axis=1).round(4)
-        logging.info('Done: percent_min_future_rows')
+            lambda row: round((row[col_names_min].min() - row[col_close]) / row[col_close], 4), axis=1).round(4)
+        logging.info('Done: percent_min_future_rows lower_bound')
 
         df['signal_buy'] = df.apply(
             lambda row: 1 if row['percent_max_future_rows'] > min_percent_profit and
                              row['percent_min_future_rows'] > (-min_percent_profit+0.002) else 0, axis=1,
         )
         logging.info('Done: signal_buy with lower bound')
-        col_names_max += ['percent_min_future_rows']
+        col_names_max += col_names_min + ['percent_min_future_rows']
     else:
         df['signal_buy'] = df.apply(lambda row: 1 if row['percent_max_future_rows'] > min_percent_profit else 0, axis=1,)
         logging.info('Done: signal_buy without lower bound')
