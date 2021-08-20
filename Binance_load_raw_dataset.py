@@ -7,7 +7,7 @@ from binance.client import Client
 import config as current_config
 
 
-def get_data():
+def get_data(current_config=current_config):
     api_key = 'm7sioX7ArO9qtdtPuOH6VRIkqiz2Dqki4A8FUqF7zheLvgogdux1UZ9KoHGNj3bT'
     api_secret = 'oqzZkc4nlvq77uUfs5L08sWYKxlpk32MmJ0su3yLLkARx2YvDGS4CAHQ3TFvqGOv'
 
