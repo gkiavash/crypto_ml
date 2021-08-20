@@ -84,7 +84,7 @@ def nn_train(df, INPUT_DATASET_PATH, OUTPUT_FULL_PATH, return_model):
         11,
         activation='relu',
         input_shape=(X_train.shape[1], X_train.shape[2]),
-        return_sequences=True
+        return_sequences=True,
     ))
     # model.add(LSTM(16, activation='relu', return_sequences=True))
     model.add(LSTM(5, activation='sigmoid'))

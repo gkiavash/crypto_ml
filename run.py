@@ -1,11 +1,14 @@
+import logging
+
 import Binance_load_raw_dataset
 import Binance_indicators
 import nn_train
 import utils
-import config as current_config
+# import config as current_config
+import config_test as current_config
 
-
-# Binance_load_raw_dataset.get_data()
+logging.info('***************************************** new case study *****************************************')
+Binance_load_raw_dataset.get_data(current_config)
 
 col_names = {
     'open': 'open',
@@ -25,10 +28,10 @@ utils.signal_buy_(
     header_row=0,
     index_col='unix',
     need_reverse=False,
-    lower_bound=True
+    lower_bound=False
 )
 
-Binance_indicators.add_indicators(
+Binance_indicators.add_indicators_v2(
     df=None,
     INPUT_DATASET_PATH=current_config.SIGNAL_DATASET_FULL_PATH,
     OUTPUT_FULL_PATH=current_config.INDICATORS_DATASET_FULL_PATH,

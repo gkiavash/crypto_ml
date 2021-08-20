@@ -1,6 +1,9 @@
 import logging
 
+import numpy as np
 import pandas as pd
+import tensorflow as tf
+from sklearn import preprocessing
 
 import config as current_config
 
@@ -44,7 +47,7 @@ def signal_buy_(
     need_reverse=False,
     lower_bound=False,
 ):
-    logging.info("###### "+OUTPUT_FULL_PATH+" ######")
+    logging.info("###### signal_buy_: "+OUTPUT_FULL_PATH+" ######")
     if df is None:
         df = pd.read_csv(INPUT_DATASET_PATH, header=header_row, delimiter=",")
         logging.info('dataset found: {}'.format(df.columns.tolist()))
@@ -67,6 +70,7 @@ def signal_buy_(
     logging.info('Done: percent_max_future_rows')
 
     if lower_bound:
+        logging.info('lower_bound: True')
         col_names_min = ['{}_{}'.format(col_names['low'], shift) for shift in range(1, max_minutes_later + 1)]
         for shift in range(1, max_minutes_later + 1):
             df['{}_{}'.format(col_names['low'], shift)] = df[col_names['low']].shift(-shift)
@@ -105,3 +109,48 @@ def signal_buy_(
         encoding='utf-8',
         index=True
     )
+
+
+def to_supervised(train, n_out=7): # (x,1,y)
+    train = train.tolist()
+    for row_num in range(len(train)):
+        for row_seq in range(1, n_out):
+            ind_adding = row_num-row_seq
+            if ind_adding < 0:
+                ind_adding = 0
+            train[row_num].append(train[ind_adding][0])
+    return np.array(train)
+
+
+def dataset_test_load(INPUT_DATASET_PATH):
+    df = pd.read_csv(INPUT_DATASET_PATH, header=0, index_col=0)
+    df.dropna(inplace=True)
+
+    df.drop(['open', 'high', 'low', 'close', 'symbol'], axis=1, inplace=True)
+
+    print(df.head())
+    print(df.groupby(['signal_buy']).count())
+    print(df.corr(method='pearson'))
+
+    properties = list(df.columns.values)
+    properties.remove('signal_buy')
+
+    X = df[properties].astype('float32')
+    y = df['signal_buy'].astype('category')
+
+    lb = preprocessing.LabelBinarizer()
+    y = lb.fit_transform(y)
+    y = tf.keras.utils.to_categorical(y)
+
+    scaler = preprocessing.MinMaxScaler(
+        (-1, 1)
+    )
+    X = scaler.fit_transform(X)
+
+    X_test = X.reshape(X.shape[0], 1, X.shape[1])
+    print(X_test.shape)
+
+    X_test = to_supervised(X_test, 8)
+    print(X_test.shape)
+
+    return X_test, y
