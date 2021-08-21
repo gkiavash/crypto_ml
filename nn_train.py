@@ -47,7 +47,6 @@ def dataset_load(current_config=current_config, test_config=None, test=False):
         df_try = df[is_hol]
         df = df.append(df_try)
         df = df.append(df_try)
-        df = df.append(df_try)
 
     print(df.head())
     print(df.groupby(['signal_buy']).count())
@@ -79,9 +78,10 @@ def dataset_load(current_config=current_config, test_config=None, test=False):
         (-1, 1)
     )
     X = scaler.fit_transform(X)
-    joblib.dump(scaler, current_config.SCALE_DIRECTORY)
+    joblib.dump(scaler, current_config.SCALE_FULL_PATH)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    print('SHUFFLE FALSE')
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, shuffle=False)
     print(X_train.shape[0], X_train.shape[1], type(X_train.shape[0]))
     print(X_test.shape[0], X_test.shape[1], type(X_test.shape[0]))
 
@@ -110,12 +110,12 @@ def model_lstm(X_train):
     # model.add(Dense(5, activation='relu'))
     model.add(Dense(2, activation='tanh'))
     # model.compile(optimizer=Adam(learning_rate=0.005), loss='binary_crossentropy', metrics=['accuracy'])
-    model.compile(optimizer=Adam(learning_rate=0.01), loss='mse', metrics=[tf.keras.metrics.CategoricalAccuracy()])
+    model.compile(optimizer=Adam(learning_rate=0.01), loss='binary_crossentropy', metrics=[tf.keras.metrics.CategoricalAccuracy()])
     print(model.summary())
     return model
 
 
-def nn_train():
+def nn_train(current_config=current_config):
     NEW_FILE_NAME_ = 'BTCUSDT_5m_1 Jan, 2019_30 Jul, 2021_6_steps_0.006_percent_profit_indicators'
 
     X_train, X_test, y_train, y_test = dataset_load(current_config=current_config)
@@ -129,5 +129,6 @@ def nn_train():
 
     model.save(
         current_config.NEURAL_NETWORK_FULL_PATH,
-        # save_format="h5"
+        save_format="h5"
     )
+    return model

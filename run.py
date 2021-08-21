@@ -6,17 +6,18 @@ import nn_train
 import backtests
 import utils
 import config as current_config
+# import config_test as current_config
 import config_test
 
 logging.info('***************************************** new case study *****************************************')
-# Binance_load_raw_dataset.get_data(current_config)
+Binance_load_raw_dataset.get_data(current_config)
 
-# col_names = {
-#     'open': 'open',
-#     'high': 'high',
-#     'low': 'low',
-#     'close': 'close'
-# }
+col_names = {
+    'open': 'open',
+    'high': 'high',
+    'low': 'low',
+    'close': 'close'
+}
 
 # utils.signal_buy_(
 #     df=None,
@@ -40,12 +41,7 @@ logging.info('***************************************** new case study *********
 #     col_names=col_names
 # )
 
-# nn_train.nn_train(
-#     df=None,
-#     INPUT_DATASET_PATH=current_config.INDICATORS_DATASET_FULL_PATH,
-#     OUTPUT_FULL_PATH=current_config.NEURAL_NETWORK_FULL_PATH,
-#     return_model=False
-# )
+# model = nn_train.nn_train(current_config)
 
 yhat, y_test = backtests.load_predict(current_config=current_config, config_test=config_test)
 backtests.eval_count_days(yhat, y_test)
