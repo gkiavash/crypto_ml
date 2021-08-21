@@ -1,3 +1,4 @@
+import logging
 import os
 import numpy as np
 import pandas as pd
@@ -8,6 +9,11 @@ import config as current_config
 
 
 def get_data(current_config=current_config):
+    if os.path.exists(current_config.RAW_DATASET_FULL_PATH):
+        print('*** raw dataset exists ***')
+        logging.info('*** raw dataset exists ***')
+        return
+
     api_key = 'm7sioX7ArO9qtdtPuOH6VRIkqiz2Dqki4A8FUqF7zheLvgogdux1UZ9KoHGNj3bT'
     api_secret = 'oqzZkc4nlvq77uUfs5L08sWYKxlpk32MmJ0su3yLLkARx2YvDGS4CAHQ3TFvqGOv'
 

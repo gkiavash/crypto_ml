@@ -4,6 +4,7 @@ from binance.client import Client
 
 import Binance_load_raw_dataset
 import utils
+import nn_train
 import config as current_config
 import config_test
 
@@ -29,76 +30,85 @@ class Config:
         )
 
 
-config_model_test = Config()
+def load_predict(current_config=current_config, config_test=config_test):
+    Binance_load_raw_dataset.get_data(current_config=config_test)
+    print('Data downloaded')
 
-Binance_load_raw_dataset.get_data(current_config=config_model_test)
+    model = tf.keras.models.load_model(current_config.NEURAL_NETWORK_FULL_PATH)
+    print('Model loaded')
 
-model = tf.keras.models.load_model(current_config.NEURAL_NETWORK_FULL_PATH)
+    X_test, y_test = nn_train.dataset_load(
+        current_config=current_config,
+        test_config=config_test,
+        test=True
+    )
 
-X_test, y_test = utils.dataset_test_load(config_test.INDICATORS_DATASET_FULL_PATH)
+    yhat = model.predict(X_test)
+    return yhat, y_test
 
-yhat = model.predict(X_test)
-yhat_ = np.argmax(yhat, axis=1)
-y_test_ = np.argmax(y_test, axis=1)
 
-print(yhat.shape)
-print(yhat_.shape)
-print(y_test.shape)
-print(y_test_.shape)
+def eval_count_days(yhat, y_test):
+    yhat_ = np.argmax(yhat, axis=1)
+    y_test_ = np.argmax(y_test, axis=1)
 
-# for i in range(100):
-# print(yhat_[i], yhat[i], y_test[i])
+    print(yhat.shape)
+    print(yhat_.shape)
+    print(y_test.shape)
+    print(y_test_.shape)
 
-yhat_p = []
-for i in range(len(yhat_)):
-    if yhat_[i] == 1:
-        yhat_p.append(yhat[i, 1])
-print(yhat_p)
-print(sum(yhat_p) / len(yhat_p))
+    # for i in range(100):
+    # print(yhat_[i], yhat[i], y_test[i])
 
-#################  num of ones predicted
-yhat_1 = 0
-yhat_0 = 0
-for i in yhat_:
-    if i == 1:
-        yhat_1 += 1
-    else:
-        yhat_0 += 1
-print('num of ones predicted: ', yhat_0, yhat_1)
+    yhat_p = []
+    for i in range(len(yhat_)):
+        if yhat_[i] == 1:
+            yhat_p.append(yhat[i, 1])
+    print(yhat_p)
+    print(sum(yhat_p) / len(yhat_p))
 
-#################  num of ones actual
-y_test_1 = 0
-y_test_0 = 0
-for i in y_test_:
-    if i == 1:
-        y_test_1 += 1
-    else:
-        y_test_0 += 1
-print('num of ones actual: ', y_test_0, y_test_1)
+    #################  num of ones predicted
+    yhat_1 = 0
+    yhat_0 = 0
+    for i in yhat_:
+        if i == 1:
+            yhat_1 += 1
+        else:
+            yhat_0 += 1
+    print('num of ones predicted: ', yhat_0, yhat_1)
 
-#################  num of ones actual and predicted together
-yeke_p = []
-yeke_ok = 0
-yeke_wrong = 0
-for i in range(len(yhat_)):
-    if yhat_[i] == 1 and y_test_[i] == 1:
-        yeke_ok += 1
-        yeke_p.append(yhat[i, 1])
-    elif yhat_[i] == 1 and y_test_[i] == 0:
-        yeke_wrong += 1
-print('num of ones actual and predicted together: ', yeke_wrong, yeke_ok)
+    #################  num of ones actual
+    y_test_1 = 0
+    y_test_0 = 0
+    for i in y_test_:
+        if i == 1:
+            y_test_1 += 1
+        else:
+            y_test_0 += 1
+    print('num of ones actual: ', y_test_0, y_test_1)
 
-ave_rate = sum(yeke_p) / len(yeke_p)
-print('ave_rate: ', ave_rate)
-ave_rate = 0.95
+    #################  num of ones actual and predicted together
+    yeke_p = []
+    yeke_ok = 0
+    yeke_wrong = 0
+    for i in range(len(yhat_)):
+        if yhat_[i] == 1 and y_test_[i] == 1:
+            yeke_ok += 1
+            yeke_p.append(yhat[i, 1])
+        elif yhat_[i] == 1 and y_test_[i] == 0:
+            yeke_wrong += 1
+    print('num of ones actual and predicted together: ', yeke_wrong, yeke_ok)
 
-#################  num of ones actual and predicted togheder above a rate
-yeke_ok_ = 0
-yeke_wrong_ = 0
-for i in range(len(yhat)):
-    if yhat[i, 1] >= ave_rate and y_test_[i] == 1:
-        yeke_ok_ += 1
-    elif yhat[i, 1] >= ave_rate and y_test_[i] == 0:
-        yeke_wrong_ += 1
-print('num of ones actual and predicted togheder above a rate: ', yeke_wrong_, yeke_ok_)
-print('rate of 1 prediction: ', (yeke_wrong_ + yeke_ok_) / len(X_test))
+    ave_rate = sum(yeke_p) / len(yeke_p)
+    print('ave_rate: ', ave_rate)
+    ave_rate = 0.95
+
+    #################  num of ones actual and predicted togheder above a rate
+    yeke_ok_ = 0
+    yeke_wrong_ = 0
+    for i in range(len(yhat)):
+        if yhat[i, 1] >= ave_rate and y_test_[i] == 1:
+            yeke_ok_ += 1
+        elif yhat[i, 1] >= ave_rate and y_test_[i] == 0:
+            yeke_wrong_ += 1
+    print('num of ones actual and predicted togheder above a rate: ', yeke_wrong_, yeke_ok_)
+    print('rate of 1 prediction: ', (yeke_wrong_ + yeke_ok_) / len(y_test))
