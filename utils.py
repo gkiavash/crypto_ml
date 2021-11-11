@@ -20,16 +20,6 @@ def add_previous_rows(df, columns, shifts):
     return df
 
 
-def add_m(df, column, shift):
-    df['{}_{}'.format(column, shift)] = df[column].shift(shift)
-    df['{}_{}_m'.format(column, shift)] = df.apply(
-        lambda row: row[column] - row['{}_{}'.format(column, shift)],
-        axis=1
-    ).round(4)
-    df.drop(['{}_{}'.format(column, shift)], axis=1, inplace=True)
-    return df
-
-
 def percent_calc(price_new, price_base):
     return round((price_new - price_base) / price_base, 6)
 
@@ -40,12 +30,14 @@ def signal_buy_(
     OUTPUT_FULL_PATH,
     max_minutes_later,
     min_percent_profit,
+    min_percent_loss,
     col_names,
     return_df,
     header_row,
     index_col,
     need_reverse=False,
     lower_bound=False,
+    remove_extra_cols=True,
 ):
     logging.info("###### signal_buy_: "+OUTPUT_FULL_PATH+" ######")
     if df is None:
@@ -58,9 +50,9 @@ def signal_buy_(
     col_close = col_names['close']
     col_high = col_names['high']
 
-    col_names_max = ['{}_{}'.format(col_names['high'], shift) for shift in range(1, max_minutes_later + 1)]
+    col_names_max = [f'{col_names["high"]}_{shift}' for shift in range(1, max_minutes_later + 1)]
     for shift in range(1, max_minutes_later + 1):
-        df['{}_{}'.format(col_high, shift)] = df[col_high].shift(-shift)
+        df[f'{col_names["high"]}_{shift}'] = df[col_high].shift(-shift)
     logging.info('Done: shift')
 
     df['percent_max_future_rows'] = df.apply(
@@ -71,23 +63,25 @@ def signal_buy_(
 
     if lower_bound:
         logging.info('lower_bound: True')
-        col_names_min = ['{}_{}'.format(col_names['low'], shift) for shift in range(1, max_minutes_later + 1)]
+        col_names_min = [f'{col_names["low"]}_{shift}' for shift in range(1, max_minutes_later + 1)]
         for shift in range(1, max_minutes_later + 1):
-            df['{}_{}'.format(col_names['low'], shift)] = df[col_names['low']].shift(-shift)
+            df[f'{col_names["low"]}_{shift}'] = df[col_names['low']].shift(-shift)
         logging.info('Done: shift lower_bound')
 
         df['percent_min_future_rows'] = df.apply(
-            lambda row: round((row[col_names_min].min() - row[col_close]) / row[col_close], 4), axis=1).round(4)
+            lambda row: round((row[col_names_min].min() - row[col_close]) / row[col_close], 4),
+            axis=1
+        ).round(4)
         logging.info('Done: percent_min_future_rows lower_bound')
 
         df['signal_buy'] = df.apply(
             lambda row: 1 if row['percent_max_future_rows'] > min_percent_profit and
-                             row['percent_min_future_rows'] > (-min_percent_profit+0.002) else 0, axis=1,
+                             row['percent_min_future_rows'] > min_percent_loss else 0, axis=1,
         )
         logging.info('Done: signal_buy with lower bound')
         col_names_max += col_names_min + ['percent_min_future_rows']
     else:
-        df['signal_buy'] = df.apply(lambda row: 1 if row['percent_max_future_rows'] > min_percent_profit else 0, axis=1,)
+        df['signal_buy'] = df.apply(lambda row: 1 if row['percent_max_future_rows'] > min_percent_profit else 0, axis=1)
         logging.info('Done: signal_buy without lower bound')
 
     col_names_max += ['percent_max_future_rows',]
@@ -95,7 +89,8 @@ def signal_buy_(
     if need_reverse:
         col_names_max += ['index']
 
-    df.drop(col_names_max, axis=1, inplace=True)
+    if remove_extra_cols:
+        df.drop(col_names_max, axis=1, inplace=True)
 
     logging.info(df.head())
     logging.info(df.columns.tolist())
@@ -103,6 +98,8 @@ def signal_buy_(
 
     if return_df:
         return df
+
+    logging.info('Saving signal data in {}'.format(OUTPUT_FULL_PATH))
     df.set_index(index_col, inplace=True)
     df.to_csv(
         OUTPUT_FULL_PATH,
