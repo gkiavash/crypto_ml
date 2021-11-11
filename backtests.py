@@ -1,3 +1,6 @@
+import logging
+import copy
+
 import tensorflow as tf
 import numpy as np
 from binance.client import Client
@@ -7,6 +10,12 @@ import utils
 import nn_train
 import config as current_config
 import config_test
+
+
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler("backtest.log")
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
 
 
 class Config:
@@ -47,68 +56,109 @@ def load_predict(current_config=current_config, config_test=config_test):
     return yhat, y_test
 
 
-def eval_count_days(yhat, y_test):
-    yhat_ = np.argmax(yhat, axis=1)
-    y_test_ = np.argmax(y_test, axis=1)
+def percent_calc(price_new, price_base):
+    return round((price_new - price_base) / price_base, 6)
 
-    print(yhat.shape)
-    print(yhat_.shape)
-    print(y_test.shape)
-    print(y_test_.shape)
 
-    # for i in range(100):
-    # print(yhat_[i], yhat[i], y_test[i])
+def btc_buy(wallet_usdt_, wallet_btc_, btc_qty, btc_price, rate_fee_transaction):
+    wallet_usdt_ = wallet_usdt_ - btc_qty * btc_price
+    if wallet_usdt_ < 0:
+        raise Exception('Not enough USDT')
+    wallet_btc_ = wallet_btc_ + btc_qty - (btc_qty * rate_fee_transaction)
 
-    yhat_p = []
-    for i in range(len(yhat_)):
-        if yhat_[i] == 1:
-            yhat_p.append(yhat[i, 1])
-    print(yhat_p)
-    print(sum(yhat_p) / len(yhat_p))
+    log_str = f'Bought {btc_qty} with price {btc_price}, total_cost {btc_qty * btc_price}, ' \
+              f'wallet_usdt: {wallet_usdt_}, wallet_btc: {wallet_btc_}'
 
-    #################  num of ones predicted
-    yhat_1 = 0
-    yhat_0 = 0
-    for i in yhat_:
-        if i == 1:
-            yhat_1 += 1
-        else:
-            yhat_0 += 1
-    print('num of ones predicted: ', yhat_0, yhat_1)
+    print(log_str)
+    logger.info(log_str)
+    return wallet_usdt_, wallet_btc_
 
-    #################  num of ones actual
-    y_test_1 = 0
-    y_test_0 = 0
-    for i in y_test_:
-        if i == 1:
-            y_test_1 += 1
-        else:
-            y_test_0 += 1
-    print('num of ones actual: ', y_test_0, y_test_1)
 
-    #################  num of ones actual and predicted together
-    yeke_p = []
-    yeke_ok = 0
-    yeke_wrong = 0
-    for i in range(len(yhat_)):
-        if yhat_[i] == 1 and y_test_[i] == 1:
-            yeke_ok += 1
-            yeke_p.append(yhat[i, 1])
-        elif yhat_[i] == 1 and y_test_[i] == 0:
-            yeke_wrong += 1
-    print('num of ones actual and predicted together: ', yeke_wrong, yeke_ok)
+def btc_sell(wallet_usdt_, wallet_btc_, btc_qty, btc_price, rate_fee_transaction):
+    wallet_btc_ = wallet_btc_ - btc_qty
+    if wallet_btc_ < -0.001:
+        print(btc_qty, wallet_btc_)
+        raise Exception('Not enough BTC')
+    wallet_usdt_ = wallet_usdt_ + (btc_qty * btc_price) - (btc_qty * btc_price * rate_fee_transaction)
 
-    ave_rate = sum(yeke_p) / len(yeke_p)
-    print('ave_rate: ', ave_rate)
-    ave_rate = 0.95
+    log_str = f'Sold {btc_qty} with price {btc_price}, wallet_usdt: {wallet_usdt_}, wallet_btc: {wallet_btc_}'
+    print(log_str)
+    logger.info(log_str)
+    return wallet_usdt_, wallet_btc_
 
-    #################  num of ones actual and predicted togheder above a rate
-    yeke_ok_ = 0
-    yeke_wrong_ = 0
-    for i in range(len(yhat)):
-        if yhat[i, 1] >= ave_rate and y_test_[i] == 1:
-            yeke_ok_ += 1
-        elif yhat[i, 1] >= ave_rate and y_test_[i] == 0:
-            yeke_wrong_ += 1
-    print('num of ones actual and predicted togheder above a rate: ', yeke_wrong_, yeke_ok_)
-    print('rate of 1 prediction: ', (yeke_wrong_ + yeke_ok_) / len(y_test))
+
+def positions_check(positions, wallet_usdt, wallet_btc, btc_price, rate_fee_transaction, rate_sell_profit, rate_sell_stop_loss):
+    positions_copy = copy.deepcopy(positions)
+    for index, position in enumerate(positions):
+        if percent_calc(btc_price, position['btc_price']) >= rate_sell_profit \
+                or percent_calc(btc_price, position['btc_price']) < (rate_sell_stop_loss - 2 * rate_fee_transaction):
+            wallet_usdt, wallet_btc = btc_sell(
+                wallet_usdt_=wallet_usdt,
+                wallet_btc_=wallet_btc,
+                btc_qty=position['btc_qty'],
+                btc_price=btc_price,
+                rate_fee_transaction=rate_fee_transaction
+            )
+            positions_copy.remove(position)
+            logger.info(f'Bought: {position["btc_price"]}, Sold: {btc_price}, amount: {position["btc_qty"]}')
+            logger.info(f'wallet_usdt: {wallet_usdt}, wallet_btc: {wallet_btc}')
+    return positions_copy, wallet_usdt, wallet_btc
+
+
+def get_model_final_decision(model, input_seq):
+    yhat = model.predict(input_seq)
+
+    if len(yhat[0]) == 1:
+        return True if yhat[0][0] >= 0.5 else False
+    elif len(yhat[0]) == 2:
+        yhat_ = np.argmax(yhat, axis=1)
+        return True if yhat_[0] == 1 else False
+
+
+col_names = {
+    'open': 'open',
+    'high': 'high',
+    'low': 'low',
+    'close': 'close'
+}
+
+
+def backtest(
+        X_test,
+        model,
+        wallet_usdt=10000.0,
+        wallet_btc=0.5,
+        btc_qty=0.1,
+        rate_fee_transaction=0.001,
+        rate_sell_profit=0.008,
+        rate_sell_stop_loss=-0.006
+):
+    positions = [
+        # {
+        #     'btc_price': 12000,
+        #     'btc_qty': 0.05
+        # }
+    ]
+
+    for row in X_test:
+        if get_model_final_decision(model, row):
+            wallet_usdt, wallet_btc = btc_buy(
+                wallet_usdt_=wallet_usdt,
+                wallet_btc_=wallet_btc,
+                btc_qty=btc_qty,
+                btc_price=row[col_names['close']],
+                rate_fee_transaction=rate_fee_transaction
+            )
+            positions.append({'btc_price': row[col_names['close']],
+                              'btc_qty': btc_qty*(1-rate_fee_transaction)})
+        positions_check(
+            positions,
+            wallet_usdt,
+            wallet_btc,
+            btc_qty,
+            rate_fee_transaction,
+            rate_sell_profit,
+            rate_sell_stop_loss
+        )
+        print(f'CURRENT: wallet_usdt: {wallet_usdt}, wallet_btc: {wallet_btc}')
+
