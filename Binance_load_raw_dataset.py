@@ -5,10 +5,8 @@ import pandas as pd
 
 from binance.client import Client
 
-import config as current_config
 
-
-def get_data(current_config=current_config, overwrite=False):
+def get_data(current_config, overwrite=False):
     if not overwrite:
         if os.path.exists(current_config.RAW_DATASET_FULL_PATH):
             print('*** raw dataset exists ***')

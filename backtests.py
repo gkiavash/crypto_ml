@@ -8,7 +8,6 @@ from binance.client import Client
 import Binance_load_raw_dataset
 import utils
 import nn_train
-import config as current_config
 import config_test
 
 
@@ -39,7 +38,7 @@ class Config:
         )
 
 
-def load_predict(current_config=current_config, config_test=config_test):
+def load_predict(current_config, config_test=config_test):
     Binance_load_raw_dataset.get_data(current_config=config_test)
     print('Data downloaded')
 

@@ -282,7 +282,7 @@ def add_indicators_v2(df, INPUT_DATASET_PATH, OUTPUT_FULL_PATH, return_df, col_n
     logging.info("###### Adding Indicators ######")
     if df is None:
         df = pd.read_csv(INPUT_DATASET_PATH, header=0, delimiter=",")
-        logging.info('dataset found: {}'.format(df.columns.tolist()))
+        # logging.info('dataset found: {}'.format(df.columns.tolist()))
     df.dropna(inplace=True)
 
     # df = add_indicators_cs1(df, col_names)

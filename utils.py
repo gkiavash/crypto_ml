@@ -5,7 +5,6 @@ import pandas as pd
 import tensorflow as tf
 from sklearn import preprocessing
 
-import config as current_config
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
