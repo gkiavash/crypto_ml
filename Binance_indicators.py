@@ -243,6 +243,32 @@ def add_counters(df):
     return df
 
 
+def add_price_change_counter(df, col_names):
+    def v(row):
+        res = []
+        for index, col_name in enumerate(col_names):
+            try:
+                res.append(1 if row[col_names[index]]*row[col_names[index+1]] <= 0 else 0)
+            except:
+                res.append(0)
+        return sum(res)
+
+    window = 15
+
+    col_names = []
+    for i in range(window):
+        col_names.append(f'hour_percent_profit_count_{i}_rows')
+        df[f'hour_percent_profit_count_{i}_rows'] = df[f'hour_percent_profit'].shift(i)
+
+    df[f'hour_percent_profit_count'] = df.apply(lambda row: v(row), axis=1)
+    df.drop(col_names, axis=1, inplace=True)
+    return df
+
+
+def add_multiply(df, col_1, col_2):
+    return df[col_1] * df[col_2]
+
+
 def df_logging(df, INPUT_DATASET_PATH):
     if df is None:
         df = pd.read_csv(INPUT_DATASET_PATH, delimiter=",")
@@ -286,7 +312,8 @@ def add_indicators_v2(df, INPUT_DATASET_PATH, OUTPUT_FULL_PATH, return_df, col_n
     df.dropna(inplace=True)
 
     # df = add_indicators_cs1(df, col_names)
-    df = add_indicators_cs2(df, col_names)
+    # df = add_indicators_cs2(df, col_names)
+    df = add_indicators_cs3(df, col_names)
 
     if return_df:
         return df
@@ -322,4 +349,14 @@ def add_indicators_cs2(df, col_names):
     # df = add_m(df, column='bb_bbp', shift=3, need_fraction=False)
     df = add_counters(df)
 
+    return df
+
+
+def add_indicators_cs3(df, col_names):
+    # combine time only in bollinger and rsi
+    df = add_indicators_BollingerBands(df, col_names, window=21, window_dev=2, ones_reverse=False)
+    df = add_indicators_RSIIndicator(df, col_names, window=6, ones_reverse=False)
+    df = add_indicators_hour_percent_profit(df, col_names)
+    df = add_counters(df)
+    df = add_price_change_counter(df, col_names)
     return df
